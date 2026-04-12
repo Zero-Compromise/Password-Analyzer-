@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PassGuard — Password Strength Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <!-- Animated background grid -->
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <main class="card" role="main">
+
+    <!-- Header -->
+    <header class="card-header">
+      <div class="badge" aria-label="Version">PassGuard v2.0</div>
+      <h1>Password<br/><span class="accent">Strength</span> Analyzer</h1>
+      <p class="subtitle">Real-time analysis · Breach detection · AI-powered tips</p>
+    </header>
+
+    <!-- Password Input -->
+    <section class="input-section" aria-label="Password input">
+      <div class="input-wrap">
+        <label for="pwd" class="sr-only">Enter your password</label>
+        <input
+          type="password"
+          id="pwd"
+          placeholder="Enter your password..."
+          autocomplete="new-password"
+          spellcheck="false"
+          aria-label="Password input"
+          aria-describedby="strength-label"
+        />
+        <button class="toggle-vis" id="toggle-btn" onclick="toggleVis()" aria-label="Toggle password visibility">
+          <span id="toggle-icon">👁</span>
+        </button>
+        <div class="input-length" id="pwd-length" aria-live="polite">0</div>
+      </div>
+
+      <!-- Copy / Clear -->
+      <div class="input-actions">
+        <button class="action-btn" onclick="clearPassword()" title="Clear password">Clear</button>
+        <button class="action-btn" onclick="generatePassword()" title="Generate strong password">Generate ✦</button>
+      </div>
+    </section>
+
+    <!-- Strength Meter -->
+    <section class="meter-section" aria-label="Password strength meter">
+      <div class="meter-label">
+        <span class="mono-label">Strength</span>
+        <span id="strength-label" aria-live="polite">—</span>
+      </div>
+      <div class="meter-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="meter-track">
+        <div class="meter-fill" id="meter"></div>
+      </div>
+    </section>
+
+    <!-- Score + Description -->
+    <section class="score-section" aria-label="Score details">
+      <div class="score-row">
+        <div class="score-circle" aria-hidden="true">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle class="score-circle-bg" cx="40" cy="40" r="32"/>
+            <circle class="score-circle-fill" id="score-ring" cx="40" cy="40" r="32"/>
+          </svg>
+          <div class="score-num" id="score-num">0</div>
+        </div>
+        <div class="score-details">
+          <p id="score-desc" aria-live="polite">Start typing to analyze your password in real time. Your input is never stored.</p>
+          <div class="entropy-row" id="entropy-row" style="display:none">
+            <span class="entropy-badge" id="entropy-val"></span>
+            <span class="entropy-badge" id="crack-time"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Rules Checklist -->
+    <section class="rules-section" aria-label="Password requirements">
+      <div class="rules" id="rules-grid">
+        <div class="rule" id="r-len"   aria-label="8 or more characters"><div class="rule-dot" aria-hidden="true"></div>8+ characters</div>
+        <div class="rule" id="r-upper" aria-label="Uppercase letter"><div class="rule-dot" aria-hidden="true"></div>Uppercase letter</div>
+        <div class="rule" id="r-lower" aria-label="Lowercase letter"><div class="rule-dot" aria-hidden="true"></div>Lowercase letter</div>
+        <div class="rule" id="r-num"   aria-label="Number"><div class="rule-dot" aria-hidden="true"></div>Number</div>
+        <div class="rule" id="r-sym"   aria-label="Special symbol"><div class="rule-dot" aria-hidden="true"></div>Symbol (!@#...)</div>
+        <div class="rule" id="r-long"  aria-label="12 or more characters"><div class="rule-dot" aria-hidden="true"></div>12+ characters</div>
+      </div>
+    </section>
+
+    <!-- Backend Panel -->
+    <section class="backend-panel" id="backend-panel" aria-label="Backend analysis results" aria-live="polite">
+      <div class="panel-title">
+        <div class="dot-blink" id="blink-dot" style="display:none" aria-hidden="true"></div>
+        <span>Backend Analysis</span>
+        <span class="panel-badge" id="panel-badge" style="display:none"></span>
+      </div>
+      <div class="panel-body" id="panel-body">
+        Click <strong>Analyze with Backend</strong> to check breach databases and get AI-powered tips.
+      </div>
+    </section>
+
+    <!-- Analyze Button -->
+    <button class="btn" id="analyze-btn" onclick="analyzeBackend()" aria-label="Analyze password with backend">
+      <span id="btn-text">Analyze with Backend →</span>
+      <span class="btn-shimmer" aria-hidden="true"></span>
+    </button>
+
+    <!-- Server Status -->
+    <footer class="server-status" aria-label="Server connection status">
+      <div class="status-dot" id="status-dot" aria-hidden="true"></div>
+      <span id="status-text">checking server...</span>
+    </footer>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

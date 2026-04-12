@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PassGuard — Password Strength Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #070710;
+      --surface:   #0e0e1a;
+      --surface2:  #131325;
+      --border:    #1c1c30;
+      --border2:   #252540;
+      --text:      #e8e8f4;
+      --muted:     #52527a;
+      --muted2:    #6868a0;
+      --accent:    #7c6af7;
+      --accent2:   #9d8fff;
+      --weak:      #f25c54;
+      --fair:      #f5a623;
+      --good:      #3ecf8e;
+      --strong:    #7c6af7;
+      --mono:      'Space Mono', monospace;
+      --sans:      'DM Sans', sans-serif;
+      --radius:    14px;
+      --radius-sm: 8px;
+      --shadow:    0 24px 64px rgba(0,0,0,0.6);
+    }
+
+    .sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--sans); min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 2rem 1rem; overflow-x: hidden;
+    }
+
+    .bg-grid {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        linear-gradient(rgba(124,106,247,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,106,247,0.04) 1px, transparent 1px);
+      background-size: 36px 36px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+    }
+
+    .bg-glow {
+      position: fixed; top: -20vh; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 400px; pointer-events: none; z-index: 0;
+      background: radial-gradient(ellipse, rgba(124,106,247,0.08) 0%, transparent 70%);
+    }
+
+    .card {
+      position: relative; z-index: 1;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2.8rem 2.8rem 2.2rem;
+      width: 100%; max-width: 540px; box-shadow: var(--shadow);
+      animation: cardIn 0.5s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    @keyframes cardIn {
+      from { opacity:0; transform: translateY(20px) scale(0.97); }
+      to   { opacity:1; transform: translateY(0) scale(1); }
+    }
+    .card::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(124,106,247,0.4), transparent);
+      border-radius: 20px 20px 0 0;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--mono); font-size: 10px;
+      letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--accent); border: 1px solid rgba(124,106,247,0.25);
+      padding: 4px 12px; border-radius: 100px; margin-bottom: 1.2rem;
+      background: rgba(124,106,247,0.06);
+    }
+    h1 { font-family: var(--mono); font-size: 1.75rem; font-weight: 700; line-height: 1.15; margin-bottom: 0.5rem; letter-spacing: -0.03em; }
+    h1 .accent { color: var(--accent); }
+    .subtitle { color: var(--muted2); font-size: 0.85rem; margin-bottom: 2rem; font-weight: 300; }
+
+    .input-wrap { position: relative; margin-bottom: 0.75rem; }
+    input[type="password"], input[type="text"] {
+      width: 100%; background: var(--bg); border: 1px solid var(--border2);
+      border-radius: var(--radius-sm); padding: 0.95rem 5.5rem 0.95rem 1.1rem;
+      font-family: var(--mono); font-size: 1rem; color: var(--text); outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s; letter-spacing: 0.06em;
+    }
+    input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,106,247,0.12); }
+    .toggle-vis {
+      position: absolute; right: 2.8rem; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--muted);
+      font-size: 0.95rem; transition: color 0.2s; padding: 4px;
+    }
+    .toggle-vis:hover { color: var(--text); }
+    .input-length {
+      position: absolute; right: 0.9rem; top: 50%; transform: translateY(-50%);
+      font-family: var(--mono); font-size: 0.65rem; color: var(--muted);
+    }
+    .input-actions { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .action-btn {
+      flex: 1; padding: 0.5rem; background: var(--surface2);
+      border: 1px solid var(--border2); border-radius: var(--radius-sm);
+      color: var(--muted2); font-family: var(--mono); font-size: 0.72rem;
+      letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s;
+    }
+    .action-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(124,106,247,0.06); }
+
+    .meter-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; font-size: 0.8rem; }
+    .mono-label { color: var(--muted); font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; }
+    #strength-label { font-weight: 500; font-size: 0.9rem; transition: color 0.3s; color: var(--muted); }
+    .meter-track { height: 5px; background: var(--border); border-radius: 100px; margin-bottom: 1.6rem; overflow: hidden; }
+    .meter-fill { height: 100%; width: 0%; border-radius: 100px; transition: width 0.45s cubic-bezier(0.34,1.56,0.64,1), background 0.3s; background: var(--muted); }
+
+    .score-row { display: flex; align-items: center; gap: 1.6rem; margin-bottom: 1.5rem; }
+    .score-circle { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+    .score-circle svg { transform: rotate(-90deg); }
+    .score-circle-bg  { fill: none; stroke: var(--border); stroke-width: 3; }
+    .score-circle-fill { fill: none; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 201.1; stroke-dashoffset: 201.1; transition: stroke-dashoffset 0.5s cubic-bezier(0.34,1.56,0.64,1), stroke 0.3s; }
+    .score-num { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 1.15rem; font-weight: 700; transition: color 0.3s; }
+    .score-details { flex: 1; }
+    .score-details p { font-size: 0.83rem; color: var(--muted2); line-height: 1.65; }
+    .entropy-row { display: flex; gap: 0.5rem; margin-top: 0.6rem; flex-wrap: wrap; }
+    .entropy-badge { font-family: var(--mono); font-size: 0.68rem; padding: 3px 8px; border-radius: 4px; background: rgba(124,106,247,0.1); color: var(--muted2); border: 1px solid rgba(124,106,247,0.15); }
+
+    .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 1.5rem; }
+    .rule { display: flex; align-items: center; gap: 0.55rem; font-size: 0.8rem; color: var(--muted); transition: color 0.2s; padding: 0.4rem 0.6rem; border-radius: 6px; }
+    .rule.pass { color: var(--text); background: rgba(62,207,142,0.04); }
+    .rule-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border2); flex-shrink: 0; transition: background 0.2s, box-shadow 0.2s; }
+    .rule.pass .rule-dot { background: var(--good); box-shadow: 0 0 7px rgba(62,207,142,0.5); }
+
+    .backend-panel { background: var(--bg); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 1rem 1.2rem; margin-bottom: 1.5rem; min-height: 80px; transition: border-color 0.3s; }
+    .backend-panel.loading { border-color: var(--accent); }
+    .backend-panel.error   { border-color: var(--weak); }
+    .backend-panel.success { border-color: var(--good); }
+    .panel-title { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.7rem; display: flex; align-items: center; gap: 0.5rem; }
+    .panel-badge { margin-left: auto; font-size: 0.6rem; padding: 2px 7px; border-radius: 4px; background: rgba(62,207,142,0.1); color: var(--good); }
+    .dot-blink { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 0.9s ease-in-out infinite alternate; }
+    @keyframes blink { from { opacity:1; } to { opacity:0.2; } }
+    .panel-body { font-size: 0.83rem; color: var(--muted2); line-height: 1.6; }
+    .tag { display: inline-block; font-family: var(--mono); font-size: 0.7rem; padding: 3px 8px; border-radius: 5px; margin-right: 5px; margin-top: 5px; }
+    .tag.breached { background: rgba(242,92,84,0.12); color: var(--weak); border: 1px solid rgba(242,92,84,0.2); }
+    .tag.safe     { background: rgba(62,207,142,0.1);  color: var(--good); border: 1px solid rgba(62,207,142,0.2); }
+    .tag.tip      { background: rgba(124,106,247,0.1); color: var(--accent2); border: 1px solid rgba(124,106,247,0.2); }
+
+    .btn {
+      position: relative; overflow: hidden; width: 100%; padding: 1rem;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: var(--radius-sm); font-family: var(--mono);
+      font-size: 0.88rem; font-weight: 700; letter-spacing: 0.06em;
+      cursor: pointer; transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px rgba(124,106,247,0.3);
+    }
+    .btn:hover { opacity: 0.9; box-shadow: 0 6px 28px rgba(124,106,247,0.45); }
+    .btn:active { transform: scale(0.985); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+    .btn-shimmer {
+      position: absolute; inset: 0;
+      background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.12) 50%, transparent 60%);
+      background-size: 200% 100%; animation: shimmer 2.4s infinite;
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    .server-status { text-align: center; font-family: var(--mono); font-size: 0.62rem; color: var(--muted); margin-top: 1.2rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
+    .status-dot.online  { background: var(--good); box-shadow: 0 0 6px rgba(62,207,142,0.55); }
+    .status-dot.offline { background: var(--weak); }
+
+    @media (max-width: 480px) {
+      .card { padding: 2rem 1.6rem 1.8rem; }
+      h1 { font-size: 1.45rem; }
+      .rules { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <main class="card" role="main">
+    <header>
+      <div class="badge">PassGuard v2.0</div>
+      <h1>Password<br/><span class="accent">Strength</span> Analyzer</h1>
+      <p class="subtitle">Real-time analysis · Breach detection · AI-powered tips</p>
+    </header>
+
+    <section aria-label="Password input">
+      <div class="input-wrap">
+        <label for="pwd" class="sr-only">Enter your password</label>
+        <input type="password" id="pwd" placeholder="Enter your password..." autocomplete="new-password" spellcheck="false"/>
+        <button class="toggle-vis" id="toggle-btn" onclick="toggleVis()" aria-label="Toggle visibility"><span id="toggle-icon">👁</span></button>
+        <div class="input-length" id="pwd-length">0</div>
+      </div>
+      <div class="input-actions">
+        <button class="action-btn" onclick="clearPassword()">Clear</button>
+        <button class="action-btn" onclick="generatePassword()">Generate ✦</button>
+      </div>
+    </section>
+
+    <section aria-label="Strength meter">
+      <div class="meter-label">
+        <span class="mono-label">Strength</span>
+        <span id="strength-label">—</span>
+      </div>
+      <div class="meter-track" id="meter-track" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+        <div class="meter-fill" id="meter"></div>
+      </div>
+    </section>
+
+    <section aria-label="Score">
+      <div class="score-row">
+        <div class="score-circle" aria-hidden="true">
+          <svg width="80" height="80" viewBox="0 0 80 80">
+            <circle class="score-circle-bg" cx="40" cy="40" r="32"/>
+            <circle class="score-circle-fill" id="score-ring" cx="40" cy="40" r="32"/>
+          </svg>
+          <div class="score-num" id="score-num">0</div>
+        </div>
+        <div class="score-details">
+          <p id="score-desc" aria-live="polite">Start typing to analyze your password. Your input is never stored.</p>
+          <div class="entropy-row" id="entropy-row" style="display:none">
+            <span class="entropy-badge" id="entropy-val"></span>
+            <span class="entropy-badge" id="crack-time"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-label="Requirements">
+      <div class="rules">
+        <div class="rule" id="r-len"><div class="rule-dot"></div>8+ characters</div>
+        <div class="rule" id="r-upper"><div class="rule-dot"></div>Uppercase letter</div>
+        <div class="rule" id="r-lower"><div class="rule-dot"></div>Lowercase letter</div>
+        <div class="rule" id="r-num"><div class="rule-dot"></div>Number</div>
+        <div class="rule" id="r-sym"><div class="rule-dot"></div>Symbol (!@#...)</div>
+        <div class="rule" id="r-long"><div class="rule-dot"></div>12+ characters</div>
+      </div>
+    </section>
+
+    <div class="backend-panel" id="backend-panel" aria-live="polite">
+      <div class="panel-title">
+        <div class="dot-blink" id="blink-dot" style="display:none"></div>
+        <span>Backend Analysis</span>
+        <span class="panel-badge" id="panel-badge" style="display:none"></span>
+      </div>
+      <div class="panel-body" id="panel-body">
+        Click <strong>Analyze with Backend</strong> to check breach databases and get AI-powered tips.
+      </div>
+    </div>
+
+    <button class="btn" id="analyze-btn" onclick="analyzeBackend()">
+      <span id="btn-text">Analyze with Backend →</span>
+      <span class="btn-shimmer" aria-hidden="true"></span>
+    </button>
+
+    <footer class="server-status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">checking server...</span>
+    </footer>
+  </main>
+
+<script>
+  const BACKEND_URL = 'http://localhost:8000';
+  const CIRCUMFERENCE = 2 * Math.PI * 32;
+
+  const CHAR_SETS = {
+    lower: 'abcdefghijklmnopqrstuvwxyz',
+    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    numbers: '0123456789',
+    symbols: '!@#$%^&*()-_=+[]{}|;:,.<>?',
+  };
+
+  const COMMON_PATTERNS = [
+    /(.)\1{2,}/,
+    /^(123|abc|qwerty|password|pass)/i,
+    /^[a-z]+\d{1,3}$/i,
+  ];
+
+  function analyzeLocal() {
+    const pwd = document.getElementById('pwd').value;
+    document.getElementById('pwd-length').textContent = pwd.length;
+
+    const rules = {
+      len:   pwd.length >= 8,
+      upper: /[A-Z]/.test(pwd),
+      lower: /[a-z]/.test(pwd),
+      num:   /[0-9]/.test(pwd),
+      sym:   /[^A-Za-z0-9]/.test(pwd),
+      long:  pwd.length >= 12,
+    };
+
+    [['len','r-len'],['upper','r-upper'],['lower','r-lower'],['num','r-num'],['sym','r-sym'],['long','r-long']]
+      .forEach(([k, id]) => setRule(id, rules[k]));
+
+    let score = Object.values(rules).filter(Boolean).length;
+    let pct   = Math.round((score / 6) * 100);
+    if (pwd.length && COMMON_PATTERNS.some(r => r.test(pwd))) pct = Math.max(0, pct - 20);
+
+    const { color, label, desc } = resolveStrength(pwd, pct);
+
+    const meter = document.getElementById('meter');
+    meter.style.width = pwd.length ? pct + '%' : '0%';
+    meter.style.background = color;
+    document.getElementById('meter-track').setAttribute('aria-valuenow', pct);
+
+    const lbl = document.getElementById('strength-label');
+    lbl.textContent = label; lbl.style.color = color;
+
+    const ring   = document.getElementById('score-ring');
+    const offset = CIRCUMFERENCE - (pct / 100) * CIRCUMFERENCE;
+    ring.style.strokeDashoffset = pwd.length ? offset : CIRCUMFERENCE;
+    ring.style.stroke = color;
+
+    const num = document.getElementById('score-num');
+    num.textContent = pwd.length ? pct : '0'; num.style.color = color;
+    document.getElementById('score-desc').textContent = desc;
+
+    updateEntropyDisplay(pwd, rules);
+  }
+
+  function resolveStrength(pwd, pct) {
+    if (!pwd.length) return { color:'var(--muted)',  label:'—',      desc:'Start typing to analyze your password.' };
+    if (pct <= 33)  return { color:'var(--weak)',   label:'Weak',   desc:'Too easy to crack. Add uppercase letters, numbers and symbols.' };
+    if (pct <= 50)  return { color:'var(--fair)',   label:'Fair',   desc:'Getting there — try mixing more character types and increasing length.' };
+    if (pct <= 83)  return { color:'var(--good)',   label:'Good',   desc:'Solid password. A bit more length or symbols would make it excellent.' };
+    return               { color:'var(--strong)', label:'Strong', desc:'Excellent! Highly resistant to brute-force and dictionary attacks.' };
+  }
+
+  function updateEntropyDisplay(pwd, rules) {
+    const row = document.getElementById('entropy-row');
+    if (!pwd.length) { row.style.display = 'none'; return; }
+    const pool = (rules.lower?26:0)+(rules.upper?26:0)+(rules.num?10:0)+(rules.sym?30:0);
+    const entropy = pool > 0 ? Math.round(pwd.length * Math.log2(pool)) : 0;
+    document.getElementById('entropy-val').textContent  = `~${entropy} bits entropy`;
+    document.getElementById('crack-time').textContent   = `Crack time: ${estimateCrackTime(entropy)}`;
+    row.style.display = 'flex';
+  }
+
+  function estimateCrackTime(bits) {
+    const s = Math.pow(2, bits) / 1e10;
+    if (s < 1)        return '< 1 second';
+    if (s < 60)       return `${Math.round(s)}s`;
+    if (s < 3600)     return `${Math.round(s/60)}min`;
+    if (s < 86400)    return `${Math.round(s/3600)}hr`;
+    if (s < 31536000) return `${Math.round(s/86400)} days`;
+    const y = s/31536000;
+    if (y < 1e6) return `${Math.round(y).toLocaleString()} years`;
+    return 'centuries+';
+  }
+
+  function setRule(id, pass) {
+    document.getElementById(id).classList.toggle('pass', pass);
+  }
+
+  function toggleVis() {
+    const input = document.getElementById('pwd');
+    const icon  = document.getElementById('toggle-icon');
+    input.type = input.type === 'password' ? 'text' : 'password';
+    icon.textContent = input.type === 'password' ? '👁' : '🙈';
+  }
+
+  function clearPassword() {
+    const input = document.getElementById('pwd');
+    input.value = ''; analyzeLocal(); input.focus();
+  }
+
+  function generatePassword() {
+    const all = CHAR_SETS.lower + CHAR_SETS.upper + CHAR_SETS.numbers + CHAR_SETS.symbols;
+    const must = [
+      CHAR_SETS.lower[Math.floor(Math.random()*26)],
+      CHAR_SETS.upper[Math.floor(Math.random()*26)],
+      CHAR_SETS.numbers[Math.floor(Math.random()*10)],
+      CHAR_SETS.symbols[Math.floor(Math.random()*CHAR_SETS.symbols.length)],
+    ];
+    const rest = Array.from({length:12},()=>all[Math.floor(Math.random()*all.length)]);
+    document.getElementById('pwd').value = [...must,...rest].sort(()=>Math.random()-0.5).join('');
+    document.getElementById('pwd').type  = 'text';
+    document.getElementById('toggle-icon').textContent = '🙈';
+    analyzeLocal();
+  }
+
+  async function analyzeBackend() {
+    const pwd = document.getElementById('pwd').value;
+    if (!pwd) { showToast('Enter a password first.'); return; }
+
+    const panel = document.getElementById('backend-panel');
+    const body  = document.getElementById('panel-body');
+    const btn   = document.getElementById('analyze-btn');
+    const blink = document.getElementById('blink-dot');
+    const badge = document.getElementById('panel-badge');
+
+    panel.className = 'backend-panel loading';
+    blink.style.display = 'block';
+    badge.style.display = 'none';
+    body.innerHTML = '<span style="color:var(--muted)">Contacting backend · checking breach databases…</span>';
+    btn.disabled = true;
+    document.getElementById('btn-text').textContent = 'Analyzing…';
+
+    try {
+      const res  = await fetch(`${BACKEND_URL}/analyze`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({password: pwd}),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const data = await res.json();
+
+      panel.className = 'backend-panel success';
+      blink.style.display = 'none';
+      badge.style.display = 'inline';
+      badge.textContent = 'Analysis complete';
+
+      let html = `<strong>Score: ${data.score}/100</strong> &nbsp;·&nbsp; <strong>${data.label}</strong><br/><br/>`;
+      html += data.breached
+        ? `<span class="tag breached">⚠ Found in ${(data.breach_count||0).toLocaleString()} breach records</span><br/>`
+        : `<span class="tag safe">✓ Not found in known breaches</span><br/>`;
+      if (data.tips?.length) { html += '<br/>'; data.tips.forEach(t => { html += `<span class="tag tip">→ ${t}</span>`; }); }
+      if (data.entropy) html += `<br/><br/><span style="color:var(--muted);font-size:0.74rem">Entropy: ${data.entropy} bits &nbsp;·&nbsp; Est. crack time: ${data.crack_time}</span>`;
+      body.innerHTML = html;
+
+    } catch (err) {
+      panel.className = 'backend-panel error';
+      blink.style.display = 'none';
+      body.innerHTML = `<strong style="color:var(--weak)">Backend unreachable</strong><br/>
+        <span style="font-size:0.78rem;color:var(--muted)">Run: <code>uvicorn server:app --reload --port 8000</code></span>`;
+    }
+
+    btn.disabled = false;
+    document.getElementById('btn-text').textContent = 'Analyze with Backend →';
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position:'fixed', bottom:'2rem', left:'50%', transform:'translateX(-50%)',
+      background:'var(--surface)', border:'1px solid var(--border2)',
+      color:'var(--text)', fontFamily:'var(--mono)', fontSize:'0.78rem',
+      padding:'0.6rem 1.2rem', borderRadius:'8px',
+      boxShadow:'0 8px 32px rgba(0,0,0,0.4)', zIndex:999,
+    });
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(), 2800);
+  }
+
+  async function checkServer() {
+    const dot  = document.getElementById('status-dot');
+    const text = document.getElementById('status-text');
+    try {
+      const res = await fetch(`${BACKEND_URL}/health`, {signal: AbortSignal.timeout(2500)});
+      if (res.ok) { dot.className='status-dot online'; text.textContent='backend connected · localhost:8000'; }
+      else throw new Error();
+    } catch {
+      dot.className='status-dot offline'; text.textContent='backend offline · run the Python server';
+    }
+  }
+
+  document.getElementById('pwd').addEventListener('input', analyzeLocal);
+  checkServer();
+  setInterval(checkServer, 5000);
+</script>
+</body>
+</html>
